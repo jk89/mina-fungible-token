@@ -151,7 +151,7 @@
 can be found on <a href="https://github.com/MinaFoundation/mina-fungible-token">github</a>, or installed as an
 <a href="https://www.npmjs.com/package/mina-fungible-token">npm package</a>.</p>
 <p>The fungible token standard uses Mina's native support for custom tokens (see
-<a href="https://github.com/MinaProtocol/MIPs/blob/main/MIPS/mip-zkapps.md#token-mechanics">MIP-4</a>). An
+<a href="https://github.com/MinaProtocol/MIPs/blob/main/MIPS/mip-0004-zkapps.md#token-mechanics">MIP-4</a>). An
 account on Mina can be created to hold either Mina, or a custom token.</p>
 <p>To create a new token, one creates a smart contract, which becomes the owner for the token, and uses
 that contract to set the rules around how the token can be minted, burned and transferred. The
@@ -502,20 +502,24 @@ escrow contract, where tokens can be deposited to and withdrawn from.</p>
 <h2 id="escrow-contract-code"><a class="header" href="#escrow-contract-code">Escrow contract code</a></h2>
 <p>Interacting with tokens from a zkApp is as simple as writing off-chain code (same code like in
 previous chapter is executed from within zkApp methods):</p>
-<pre><code class="language-ts">export class TokenEscrow extends SmartContract {
+<pre><code class="language-ts">import { DeployArgs, method, PublicKey, SmartContract, State, state, UInt64 } from &quot;o1js&quot;
+
+import { FungibleToken } from &quot;mina-fungible-token&quot;
+
+export class TokenEscrow extends SmartContract {
   @state(PublicKey)
   tokenAddress = State&lt;PublicKey&gt;()
   @state(UInt64)
   total = State&lt;UInt64&gt;()
 
-  deploy(args: DeployArgs &amp; { tokenAddress: PublicKey }) {
+  async deploy(args: DeployArgs &amp; { tokenAddress: PublicKey }) {
     super.deploy(args)
     this.tokenAddress.set(args.tokenAddress)
     this.total.set(UInt64.zero)
   }
 
   @method
-  deposit(from: PublicKey, amount: UInt64) {
+  async deposit(from: PublicKey, amount: UInt64) {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals())
     token.transfer(from, this.address, amount)
     const total = this.total.getAndRequireEquals()
@@ -523,7 +527,7 @@ previous chapter is executed from within zkApp methods):</p>
   }
 
   @method
-  withdraw(to: PublicKey, amount: UInt64) {
+  async withdraw(to: PublicKey, amount: UInt64) {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals())
     const total = this.total.getAndRequireEquals()
     total.greaterThanOrEqual(amount)
