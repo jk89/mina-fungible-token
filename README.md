@@ -6,26 +6,15 @@ Standard implementation of fungible tokens in Mina, as per
 This implementation is currently a beta. We do not expect the API to change anytime soon. We are
 awaiting an audit of the code before removing the beta status.
 
-## Running tests
+## Install and run litenet with proofs enabled
 
-```sh
-npm run test
-```
+`npm install -g zkapp-cli && zk lightnet start -p full -t real -l Debug`
 
-If you want disable proof generation during testing, you can do so via
-
-```sh
-SKIP_PROOFS=true npm run test
-```
-
-The tests will run much faster that way, which is nice when you're testing locally while developing.
-Note that this will skip one test does
-
-## Running [Examples](./examples)
+## Running e2e test
 
 ```sh
 npm i
-npm run task examples/<example-file-name>.ts
+npm run task examples/e2e.eg.ts
 ```
 
 ## License
