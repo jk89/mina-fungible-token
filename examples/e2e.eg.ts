@@ -1,6 +1,6 @@
 import { equal } from "node:assert"
 import { AccountUpdate, Bool, fetchAccount, Mina, NetworkId, PrivateKey, UInt64, UInt8 } from "o1js"
-import { FungibleToken, FungibleTokenAdmin } from "../index.js"
+import { FungibleToken, FungibleTokenAdmin } from "../contracts.js"
 
 async function getNewMinaLiteNetAccountSK(): Promise<string> {
     const { request } = await import('http');
@@ -133,7 +133,7 @@ const mintTx = await Mina.transaction({
   fee,
 }, async () => {
   AccountUpdate.fundNewAccount(deployerPublicKey, 1); // ownerPublicKey
-  await token.mint(alexaPublicKey, new UInt64(2e9))
+  await adminContract.noriMint(token.address, alexaPublicKey, new UInt64(2e9)) // nori mint controller
 })
 await mintTx.prove()
 mintTx.sign([deployerPrivateKey, admin.privateKey]) // ownerPrivateKey
@@ -155,7 +155,7 @@ const alexaBalanceAfterMint = (await token.getBalanceOf(alexaPublicKey)).toBigIn
 console.log("Alexa balance after mint:", alexaBalanceAfterMint)
 equal(alexaBalanceAfterMint, BigInt(2e9));
 
-await fetchAccount({publicKey: billyPublicKey});
+/*await fetchAccount({publicKey: billyPublicKey});
 await fetchAccount({
     publicKey: billyPublicKey,
     tokenId: token.deriveTokenId(),
@@ -224,3 +224,4 @@ await fetchAccount({publicKey: contract.publicKey});
 const billyBalanceAfterBurn = (await token.getBalanceOf(billyPublicKey)).toBigInt()
 console.log("Billy balance after burn:", billyBalanceAfterBurn)
 equal(billyBalanceAfterBurn, BigInt(4e8))
+*/

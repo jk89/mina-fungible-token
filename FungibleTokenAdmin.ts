@@ -10,16 +10,12 @@ import {
   SmartContract,
   State,
   state,
+  UInt64,
   VerificationKey,
 } from "o1js"
+import { type FungibleToken } from './FungibleToken.js';
 
-export type FungibleTokenAdminBase = SmartContract & {
-  canMint(accountUpdate: AccountUpdate): Promise<Bool>
-  canChangeAdmin(admin: PublicKey): Promise<Bool>
-  canPause(): Promise<Bool>
-  canResume(): Promise<Bool>
-  canChangeVerificationKey(vk: VerificationKey): Promise<Bool>
-}
+import {FungibleTokenAdminBase} from './types.js';
 
 export interface FungibleTokenAdminDeployProps extends Exclude<DeployArgs, undefined> {
   adminPublicKey: PublicKey
@@ -35,7 +31,11 @@ export interface FungibleTokenAdminDeployProps extends Exclude<DeployArgs, undef
  */
 export class FungibleTokenAdmin extends SmartContract implements FungibleTokenAdminBase {
   @state(PublicKey)
+  
   private adminPublicKey = State<PublicKey>()
+  
+
+  static TokenContract: typeof FungibleToken;
 
   async deploy(props: FungibleTokenAdminDeployProps) {
     await super.deploy(props)
@@ -63,6 +63,15 @@ export class FungibleTokenAdmin extends SmartContract implements FungibleTokenAd
     })
     this.adminPublicKey.requireEquals(admin)
     return AccountUpdate.createSigned(admin)
+  }
+
+  @method
+  public async noriMint(tokenAddress: PublicKey, userAddress: PublicKey, amountToMint: UInt64) {
+    let token = new FungibleTokenAdmin.TokenContract(tokenAddress);
+    const mintAccountUpdate = await token.mint(
+        userAddress,
+        amountToMint
+    );
   }
 
   @method.returns(Bool)
