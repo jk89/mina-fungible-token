@@ -1,5 +1,5 @@
 import { equal } from "node:assert"
-import { AccountUpdate, Bool, Mina, NetworkId, PrivateKey, UInt64, UInt8 } from "o1js"
+import { AccountUpdate, Bool, fetchAccount, Mina, NetworkId, PrivateKey, UInt64, UInt8 } from "o1js"
 import { FungibleToken, FungibleTokenAdmin } from "../index.js"
 
 async function getNewMinaLiteNetAccountSK(): Promise<string> {
@@ -43,9 +43,7 @@ const minaConfig = {
     mina: 'http://localhost:8080/graphql',
 };
 
-
 const Network = Mina.Network(minaConfig);
-Mina.setActiveInstance(Network);
 Mina.setActiveInstance(Network);
 
 const fee = 1e8
@@ -58,6 +56,10 @@ const deployerPrivateKey = PrivateKey.fromBase58(litenetSk);
 const deployerPublicKey = deployerPrivateKey.toPublicKey();
 
 litenetSk = await getNewMinaLiteNetAccountSK();
+const ownerPrivateKey = PrivateKey.fromBase58(litenetSk);
+const ownerPublicKey = deployerPrivateKey.toPublicKey();
+
+litenetSk = await getNewMinaLiteNetAccountSK();
 const alexaPrivateKey = PrivateKey.fromBase58(litenetSk);
 const alexaPublicKey = alexaPrivateKey.toPublicKey();
 
@@ -68,7 +70,7 @@ const billyPublicKey = billyPrivateKey.toPublicKey();
 const contract = PrivateKey.randomKeypair();
 const admin = PrivateKey.randomKeypair();
 
-console.log('HELPME', deployerPublicKey.toBase58(), contract.publicKey.toBase58(), admin.publicKey.toBase58(), alexaPublicKey.toBase58(), billyPublicKey.toBase58());
+console.log('Public keys', deployerPublicKey.toBase58(), ownerPublicKey.toBase58(), contract.publicKey.toBase58(), admin.publicKey.toBase58(), alexaPublicKey.toBase58(), billyPublicKey.toBase58());
 
 // Compile
 console.time("FungibleToken compilation");
@@ -113,27 +115,52 @@ const deployTxResult = await deployTx.send().then((v) => v.wait())
 console.log("Deploy tx result:", deployTxResult.toPretty())
 equal(deployTxResult.status, "included")
 
+await fetchAccount({publicKey: alexaPublicKey});
+await fetchAccount({
+    publicKey: alexaPublicKey,
+    tokenId: token.deriveTokenId(),
+});
+await fetchAccount({publicKey: contract.publicKey});
+
+// just alexa
 const alexaBalanceBeforeMint = (await token.getBalanceOf(alexaPublicKey)).toBigInt()
 console.log("Alexa balance before mint:", alexaBalanceBeforeMint)
 equal(alexaBalanceBeforeMint, 0n)
 
 console.log("Minting new tokens to Alexa.")
 const mintTx = await Mina.transaction({
-  sender: deployerPublicKey,
+  sender: deployerPublicKey, //ownerPublicKey,
   fee,
 }, async () => {
-  AccountUpdate.fundNewAccount(deployerPublicKey, 1)
+  AccountUpdate.fundNewAccount(deployerPublicKey, 1); // ownerPublicKey
   await token.mint(alexaPublicKey, new UInt64(2e9))
 })
 await mintTx.prove()
-mintTx.sign([deployerPrivateKey, admin.privateKey])
+mintTx.sign([deployerPrivateKey, admin.privateKey]) // ownerPrivateKey
+
+// owner private key was removed because mint tx fails (invalid\n \"Invalid_signature:
+
 const mintTxResult = await mintTx.send().then((v) => v.wait())
 console.log("Mint tx result:", mintTxResult.toPretty())
 equal(mintTxResult.status, "included")
 
+await fetchAccount({publicKey: alexaPublicKey});
+await fetchAccount({
+    publicKey: alexaPublicKey,
+    tokenId: token.deriveTokenId(),
+});
+await fetchAccount({publicKey: contract.publicKey});
+
 const alexaBalanceAfterMint = (await token.getBalanceOf(alexaPublicKey)).toBigInt()
 console.log("Alexa balance after mint:", alexaBalanceAfterMint)
-equal(alexaBalanceAfterMint, BigInt(2e9))
+equal(alexaBalanceAfterMint, BigInt(2e9));
+
+await fetchAccount({publicKey: billyPublicKey});
+await fetchAccount({
+    publicKey: billyPublicKey,
+    tokenId: token.deriveTokenId(),
+});
+await fetchAccount({publicKey: contract.publicKey});
 
 const billyBalanceBeforeMint = await token.getBalanceOf(billyPublicKey)
 console.log("Billy balance before mint:", billyBalanceBeforeMint.toBigInt())
@@ -152,6 +179,19 @@ transferTx.sign([alexaPrivateKey])
 const transferTxResult = await transferTx.send().then((v) => v.wait())
 console.log("Transfer tx result:", transferTxResult.toPretty())
 equal(transferTxResult.status, "included")
+
+await fetchAccount({publicKey: alexaPublicKey});
+await fetchAccount({
+    publicKey: alexaPublicKey,
+    tokenId: token.deriveTokenId(),
+});
+await fetchAccount({publicKey: contract.publicKey});
+await fetchAccount({publicKey: billyPublicKey});
+await fetchAccount({
+    publicKey: billyPublicKey,
+    tokenId: token.deriveTokenId(),
+});
+await fetchAccount({publicKey: contract.publicKey});
 
 const alexaBalanceAfterTransfer = (await token.getBalanceOf(alexaPublicKey)).toBigInt()
 console.log("Alexa balance after transfer:", alexaBalanceAfterTransfer)
@@ -173,6 +213,13 @@ burnTx.sign([billyPrivateKey])
 const burnTxResult = await burnTx.send().then((v) => v.wait())
 console.log("Burn tx result:", burnTxResult.toPretty())
 equal(burnTxResult.status, "included")
+
+await fetchAccount({publicKey: billyPublicKey});
+await fetchAccount({
+    publicKey: billyPublicKey,
+    tokenId: token.deriveTokenId(),
+});
+await fetchAccount({publicKey: contract.publicKey});
 
 const billyBalanceAfterBurn = (await token.getBalanceOf(billyPublicKey)).toBigInt()
 console.log("Billy balance after burn:", billyBalanceAfterBurn)
